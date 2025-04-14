@@ -20,9 +20,11 @@ python hebb.py
 python hebb.py [-h] [--cuda CUDA] [--seed SEED] [--dataset DATASET] [--is_bp]
 ```
 
+For Tiny-ImageNet dataset, torchvision does not provide an api, you can use huggingface api, but because of internet instability, we choose to download manually and load the raw data from [this repository](https://github.com/pranavphoenix/TinyImageNetLoader).
+
 ## Reconstruction experiment
 
-![](figures/reconstruction.png)
+![](figures/output.png)
 
 To reimplement the AE for reconstruction, run:
 
