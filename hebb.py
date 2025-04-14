@@ -136,19 +136,6 @@ class HebbLayer(nn.Module):
         x0 = x0 / x
         cov = x0 @ x0.t()
         return cov
-
-    
-    def pdist(self, x):
-        x = x.view(x.size(0), -1)
-        x = F.normalize(x, p=2, dim=-1)
-        distances = F.pdist(x, p=2)
-        return distances
-    
-    def dis_loss(self, x, y):
-        dis_x = self.pdist(x).detach()
-        dis_y = self.pdist(y)
-        loss = self.criteria(dis_x, dis_y)
-        return loss
     
     def ortho_loss(self, x):
         x = x.view(x.size(0), -1)
@@ -158,10 +145,15 @@ class HebbLayer(nn.Module):
         loss = F.mse_loss(rx, identity)
         return loss
     
+    def hebb_loss(self, z, y):
+        corr_y = self.normal_kernel(y)
+        corr_z = self.normal_kernel(z)
+        loss = self.criteria(corr_z, corr_y)
+        return loss
     
     def cal_loss(self, x, y):
         y_proj = self.out_proj(y)
-        unsup_hebb_loss = self.dis_loss(x, y_proj)
+        unsup_hebb_loss = self.hebb_loss(x, y_proj)
         #unsup_hebb_img_loss = self.dis_loss(img, y_proj)
         ortho_loss = self.ortho_loss(y_proj)
         loss = unsup_hebb_loss + ortho_loss*0.8 #- unsup_hebb_img_loss * 0.3
@@ -305,7 +297,7 @@ if __name__ == '__main__':
         label_num = 200
 
     model = CNN(label_num, args.is_bp).to(device)
-
+    print(args.is_bp)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.AdamW(model.parameters(), lr=1e-3, weight_decay=0.05)
 

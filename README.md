@@ -25,6 +25,8 @@ To reimplement the AE for reconstruction, run:
 python reconstruction/run.py --noise_mean 0.0 --noise_std 0.0
 ```
 
+If you want to use your own pretrained models:
+
 1. First run these to save the model files:
 
    ```bash

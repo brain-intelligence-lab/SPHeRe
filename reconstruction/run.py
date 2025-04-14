@@ -150,9 +150,7 @@ class CNN(nn.Module):
             nn.Sequential(
                 nn.Conv2d(3, self.channel // 4, 3, 1, 1),
                 nn.BatchNorm2d(self.channel // 4),
-                # nn.ReLU(),
                 nn.LeakyReLU(0.2),
-                # Triangle(power=0.7),
                 nn.MaxPool2d(4, 2, 1),
             ),
             3, self.channel // 4, self.proj_num, res=False
@@ -161,9 +159,7 @@ class CNN(nn.Module):
             nn.Sequential(
                 nn.Conv2d(self.channel // 4, self.channel // 2, 3, 1, 1),
                 nn.BatchNorm2d(self.channel // 2),
-                # nn.ReLU(),
                 nn.LeakyReLU(0.2),
-                # Triangle(power=1.4),
                 nn.MaxPool2d(4, 2, 1),
             ),
             self.channel // 4, self.channel // 2, self.proj_num, res=False
@@ -172,9 +168,7 @@ class CNN(nn.Module):
             nn.Sequential(
                 nn.Conv2d(self.channel // 2, self.channel, 3, 1, 1),
                 nn.BatchNorm2d(self.channel),
-                # nn.ReLU(),
                 nn.LeakyReLU(0.2),
-                # Triangle(power=1.),
                 nn.MaxPool2d(4, 2, 1),
             ),
             self.channel // 2, self.channel, self.proj_num, res=True
@@ -206,33 +200,7 @@ class AddGaussianNoise(object):
         return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
 
 
-noise = AddGaussianNoise(mean=args.noise_mean, std=args.noise_mean)
-
-def blackout_random_rectangle(tensor, size):
-    """
-    Randomly selects a rectangle in the tensor and makes it black.
-    
-    Args:
-        tensor (torch.Tensor): Input tensor of shape (B, C, W, H)
-        
-    Returns:
-        torch.Tensor: Tensor with a randomly blacked-out rectangle
-    """
-    if not isinstance(tensor, torch.Tensor):
-        raise TypeError(f"Input should be a torch.Tensor, got {type(tensor)}")
-    
-    B, C, W, H = tensor.shape
-    
-    for b in range(B):
-        # Randomly select the top-left corner of the rectangle
-        x1 = random.randint(0, W - size)
-        y1 = random.randint(0, H - size)
-
-        
-        # Set the selected rectangle to black
-        tensor[b, :, x1:x1 + size, y1:y1 + size] = 0
-    
-    return tensor
+noise = AddGaussianNoise(mean=args.noise_mean, std=args.noise_std)
 
 seed_all(args.seed)
 
@@ -252,7 +220,6 @@ encoder[3].load_state_dict(torch.load('./models/hebb.pth'), strict=False)
 
 name = ['SoftHebb', 'SoftHebb(100 epochs)', 'BP', 'SPHeRe']
 
-
 class UpsampleDecoder(nn.Module):
     def __init__(self):
         super(UpsampleDecoder, self).__init__()
@@ -262,13 +229,11 @@ class UpsampleDecoder(nn.Module):
             nn.ReLU(),
             nn.ConvTranspose2d(512, 256, kernel_size=3, stride=2, padding=1, output_padding=1),  # (1, 256, 16, 16)
             nn.ReLU(),
-            nn.ConvTranspose2d(256, 3, kernel_size=3, stride=2, padding=1, output_padding=1),  # (1, 128, 32, 32)
+            nn.ConvTranspose2d(256, 3, kernel_size=3, stride=2, padding=1, output_padding=1),  # (1, 3, 32, 32)
             # nn.ReLU(),
             # nn.Conv2d(128, 3, kernel_size=3, padding=1),  # Reduce channels to 3
         )
-
-
-    
+        
     def forward(self, x):
         return self.decoder(x)
     
@@ -359,4 +324,4 @@ for i, (ax, caption) in enumerate(zip(axes, captions)):
 
 
 # Save the figure
-plt.savefig('output.png')
+plt.savefig('figures/output.png')
