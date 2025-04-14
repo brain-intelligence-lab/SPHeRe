@@ -1,8 +1,8 @@
 import os
 import argparse
-parser = argparse.ArgumentParser(description='Train a CNN with Hebbian learning on CIFAR-100')
+parser = argparse.ArgumentParser(description='AE reconstruction')
 parser.add_argument('--cuda', type=str, default='0', help='CUDA device (default: 0)')
-parser.add_argument('--seed', type=int, default=1, help='random seed (default: 2000)')
+parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
 parser.add_argument('--noise_mean', type=float, default=0.0, help='the mean of the added noise')
 parser.add_argument('--noise_std', type=float, default=0.0,help='the std of the added noise')
 args = parser.parse_args()

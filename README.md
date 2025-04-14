@@ -2,7 +2,7 @@
 
 This is the official PyTorch implementation for "Rethinking Hebbian Principle: Low-Dimensional Structural Projection for Unsupervised Learning"
 
-## Quick start
+## Unsupervised learning
 
 ```bash
 # Clone our repository
@@ -15,9 +15,14 @@ conda activate SPHeRe
 
 # Train a NN on CIFAR10 to reproduce the SOTA result printed on the paper
 python hebb.py
+
+# Or if you want to specify parameters:
+python hebb.py [-h] [--cuda CUDA] [--seed SEED] [--dataset DATASET] [--is_bp]
 ```
 
 ## Reconstruction experiment
+
+![](figures/reconstruction.png)
 
 To reimplement the AE for reconstruction, run:
 

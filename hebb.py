@@ -1,9 +1,9 @@
 import os
 import argparse
-parser = argparse.ArgumentParser(description='Train a CNN with Hebbian learning on CIFAR-100')
+parser = argparse.ArgumentParser(description='Train a CNN with Hebbian learning')
 parser.add_argument('--cuda', type=str, default='0', help='CUDA device (default: 0)')
-parser.add_argument('--seed', type=int, default=1, help='random seed (default: 2000)')
-parser.add_argument('--dataset', type=str, default='cifar10', help='number of classes (default: 100)')
+parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
+parser.add_argument('--dataset', type=str, default='cifar10', help='which dataset to use')
 parser.add_argument('--is_bp', action='store_true', help='Use backpropagation (default: False)')
 args = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"] = args.cuda
