@@ -2,10 +2,18 @@
 Demo single-file script to train a ConvNet on CIFAR10 using SoftHebb, an unsupervised, efficient and bio-plausible
 learning algorithm
 """
+import torchvision.transforms as transforms
+from torchvision.io import read_image, ImageReadMode
 import math
 import warnings
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+import argparse
+parser = argparse.ArgumentParser(description='Train a CNN with SoftHebb')
+parser.add_argument('--cuda', type=str, default='0', help='CUDA device (default: 0)')
+parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
+parser.add_argument('--dataset', type=str, default='cifar10', help='which dataset to use')
+args = parser.parse_args()
+os.environ["CUDA_VISIBLE_DEVICES"] = args.cuda
 import torch
 from torch import nn, optim
 import torch.nn.functional as F
@@ -14,7 +22,55 @@ from torch.optim.lr_scheduler import StepLR
 import torchvision
 import random
 import numpy as np
+import glob
+    
+class TrainTinyImageNetDataset(torch.utils.data.Dataset):
+    def __init__(self, id, transform=None):
+        self.filenames = glob.glob("./data/tiny-imagenet-200/train/*/*/*.JPEG")
+        self.transform = transform
+        self.id_dict = id
 
+    def __len__(self):
+        return len(self.filenames)
+
+    def __getitem__(self, idx):
+        img_path = self.filenames[idx]
+        image = read_image(img_path)
+        if image.shape[0] == 1:
+          image = read_image(img_path,ImageReadMode.RGB)
+        norm_path = os.path.normpath(img_path)
+        path_parts = norm_path.split(os.path.sep)
+        class_id = path_parts[-3]
+        label = self.id_dict[class_id]
+        if self.transform:
+            image = self.transform(image.type(torch.FloatTensor))
+        return image, label
+
+class TestTinyImageNetDataset(torch.utils.data.Dataset):
+    def __init__(self, id, transform=None):
+        self.filenames = glob.glob("./data/tiny-imagenet-200/val/images/*.JPEG")
+        self.transform = transform
+        self.id_dict = id
+        self.cls_dic = {}
+        for i, line in enumerate(open('./data/tiny-imagenet-200/val/val_annotations.txt', 'r')):
+            a = line.split('\t')
+            img, cls_id = a[0],a[1]
+            self.cls_dic[img] = self.id_dict[cls_id]
+ 
+
+    def __len__(self):
+        return len(self.filenames)
+
+    def __getitem__(self, idx):
+        img_path = self.filenames[idx]
+        image = read_image(img_path)
+        if image.shape[0] == 1:
+          image = read_image(img_path,ImageReadMode.RGB)
+        filename = os.path.basename(img_path)
+        label = self.cls_dic[filename]
+        if self.transform:
+            image = self.transform(image.type(torch.FloatTensor))
+        return image, label
 
 def seed_all(seed):
     random.seed(seed)
@@ -101,7 +157,7 @@ class SoftHebbConv2d(nn.Module):
 
 
 class DeepSoftHebb(nn.Module):
-    def __init__(self):
+    def __init__(self, label_num=10):
         super(DeepSoftHebb, self).__init__()
         # block 1
         self.bn1 = nn.BatchNorm2d(3, affine=False)
@@ -120,8 +176,9 @@ class DeepSoftHebb(nn.Module):
         self.pool3 = nn.AvgPool2d(kernel_size=2, stride=2, padding=0)
         # block 4
         self.flatten = nn.Flatten()
-        self.classifier = nn.Linear(24576, 10)
-        self.classifier.weight.data = 0.11048543456039805 * torch.rand(10, 24576)
+        self.avgpool = nn.AdaptiveAvgPool2d((4, 4)) # downsample to 4*4, does not effect cifar10 and cifar100
+        self.classifier = nn.Linear(24576, label_num)
+        self.classifier.weight.data = 0.11048543456039805 * torch.rand(label_num, 24576)
         self.dropout = nn.Dropout(0.5)
 
     def forward(self, x):
@@ -132,6 +189,7 @@ class DeepSoftHebb(nn.Module):
         # block 3
         out = self.pool3(self.activ3(self.conv3(self.bn3(out))))
         # block 4
+        out = self.avgpool(out)
         return self.classifier(self.dropout(self.flatten(out)))
 
 
@@ -265,9 +323,60 @@ class FastCIFAR10(torchvision.datasets.CIFAR10):
 
 # Main training loop CIFAR10
 if __name__ == "__main__":
-    seed_all(1)
+    seed_all(args.seed)
     device = torch.device('cuda:0')
-    model = DeepSoftHebb()
+    batch_size = 128
+    
+    # For SoftHebb, they are not using normalization in their paper, 
+    # and adding normalization will not result in an increase in performance
+    
+    if args.dataset == 'cifar100':
+        test_transform = transforms.Compose([
+            transforms.ToTensor(),
+            #transforms.Normalize(mean=(0.4914, 0.48216, 0.44653), std=(0.247, 0.2434, 0.2616))
+        ])
+        train_transform = transforms.Compose([
+            transforms.ToTensor(),
+            #transforms.Normalize(mean=(0.4914, 0.48216, 0.44653), std=(0.247, 0.2434, 0.2616))
+        ])
+        trainset = torchvision.datasets.CIFAR100(root='./data', train=True,
+                                                download=True, transform=train_transform)
+        testset = torchvision.datasets.CIFAR100(root='./data', train=False,
+                                            download=True, transform=test_transform)
+        sup_trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+        unsup_trainloader = torch.utils.data.DataLoader(trainset, batch_size=10, shuffle=True, num_workers=2)
+        testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
+        label_num = 100
+    
+    if args.dataset == 'tiny-imagenet':
+        id_dict = {}
+        for i, line in enumerate(open('./data/tiny-imagenet-200/wnids.txt', 'r')):
+            id_dict[line.replace('\n', '')] = i
+        
+        
+        test_transform = transforms.Compose([
+            #transforms.Normalize((122.4786, 114.2755, 101.3963), (70.4924, 68.5679, 71.8127))
+        ])
+        train_transform = transforms.Compose([
+            #transforms.Normalize((122.4786, 114.2755, 101.3963), (70.4924, 68.5679, 71.8127))
+        ])
+        trainset = TrainTinyImageNetDataset(id = id_dict, transform = train_transform)
+        testset = TestTinyImageNetDataset(id = id_dict, transform = test_transform)
+        sup_trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+        unsup_trainloader = torch.utils.data.DataLoader(trainset, batch_size=10, shuffle=True, num_workers=2)
+        testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
+        label_num = 200
+        
+    if args.dataset == 'cifar10':
+        trainset = FastCIFAR10('./data', train=True, download=True)
+        unsup_trainloader = torch.utils.data.DataLoader(trainset, batch_size=10, shuffle=True, )
+        sup_trainloader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True, )
+
+        testset = FastCIFAR10('./data', train=False)
+        testloader = torch.utils.data.DataLoader(testset, batch_size=1000, shuffle=False)
+        label_num = 10
+
+    model = DeepSoftHebb(label_num)
     model.to(device)
 
     unsup_optimizer = TensorLRSGD([
@@ -280,13 +389,6 @@ if __name__ == "__main__":
     sup_optimizer = optim.Adam(model.classifier.parameters(), lr=0.001)
     sup_lr_scheduler = CustomStepLR(sup_optimizer, nb_epochs=100)
     criterion = nn.CrossEntropyLoss()
-
-    trainset = FastCIFAR10('./data', train=True, download=True)
-    unsup_trainloader = torch.utils.data.DataLoader(trainset, batch_size=10, shuffle=True, )
-    sup_trainloader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True, )
-
-    testset = FastCIFAR10('./data', train=False)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=1000, shuffle=False)
 
     # Unsupervised training with SoftHebb
     running_loss = 0.0
@@ -305,7 +407,7 @@ if __name__ == "__main__":
         unsup_optimizer.step()
         unsup_lr_scheduler.step()
         
-    torch.save(model.state_dict(), 'softhebb.pth')
+    torch.save(model.state_dict(), './models/softhebb.pth')
     print('Unsupervise training finished')
 
     # Supervised training of classifier

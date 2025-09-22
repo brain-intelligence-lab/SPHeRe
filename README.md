@@ -1,6 +1,6 @@
 # SPHeRe
 
-This is the official PyTorch implementation for "Rethinking Hebbian Principle: Low-Dimensional Structural Projection for Unsupervised Learning"
+This is the official PyTorch implementation for "Rethinking Hebbian Principle: Low-Dimensional Structural Projection for Unsupervised Learning" (NeurIPS 2025)
 
 ## Unsupervised learning
 

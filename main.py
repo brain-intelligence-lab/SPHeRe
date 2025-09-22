@@ -41,7 +41,10 @@ class TrainTinyImageNetDataset(torch.utils.data.Dataset):
         image = read_image(img_path)
         if image.shape[0] == 1:
           image = read_image(img_path,ImageReadMode.RGB)
-        label = self.id_dict[img_path.split('/')[4]]
+        norm_path = os.path.normpath(img_path)
+        path_parts = norm_path.split(os.path.sep)
+        class_id = path_parts[-3]
+        label = self.id_dict[class_id]
         if self.transform:
             image = self.transform(image.type(torch.FloatTensor))
         return image, label
@@ -66,7 +69,8 @@ class TestTinyImageNetDataset(torch.utils.data.Dataset):
         image = read_image(img_path)
         if image.shape[0] == 1:
           image = read_image(img_path,ImageReadMode.RGB)
-        label = self.cls_dic[img_path.split('/')[-1]]
+        filename = os.path.basename(img_path)
+        label = self.cls_dic[filename]
         if self.transform:
             image = self.transform(image.type(torch.FloatTensor))
         return image, label
@@ -154,10 +158,8 @@ class HebbLayer(nn.Module):
     def cal_loss(self, x, y):
         y_proj = self.out_proj(y)
         unsup_hebb_loss = self.hebb_loss(x, y_proj)
-        #unsup_hebb_img_loss = self.dis_loss(img, y_proj)
         ortho_loss = self.ortho_loss(y_proj)
-        loss = unsup_hebb_loss + ortho_loss*0.8 #- unsup_hebb_img_loss * 0.3
-
+        loss = unsup_hebb_loss + ortho_loss*0.8
         return loss
 
     def forward(self, x):
@@ -297,7 +299,6 @@ if __name__ == '__main__':
         label_num = 200
 
     model = CNN(label_num, args.is_bp).to(device)
-    print(args.is_bp)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.AdamW(model.parameters(), lr=1e-3, weight_decay=0.05)
 
@@ -312,7 +313,7 @@ if __name__ == '__main__':
         if test_acc > best_accu:
             best_accu = test_acc
     if args.is_bp:
-        torch.save(model.state_dict(), f'./bp.pth')
+        torch.save(model.state_dict(), f'./models/bp.pth')
     else:
-        torch.save(model.state_dict(), f'./hebb.pth')
+        torch.save(model.state_dict(), f'./models/SPHeRe.pth')
     logger.info(f'Best test accuracy: {best_accu}, last test accuracy: {test_acc}')
