@@ -14,10 +14,10 @@ conda env create -n SPHeRe --file requirements.yml
 conda activate SPHeRe
 
 # Train a NN on CIFAR10 to reproduce the SOTA result printed on the paper
-python hebb.py
+python main.py
 
 # Or if you want to specify parameters:
-python hebb.py [-h] [--cuda CUDA] [--seed SEED] [--dataset DATASET] [--is_bp]
+python main.py [-h] [--cuda CUDA] [--seed SEED] [--dataset DATASET] [--is_bp]
 ```
 
 For Tiny-ImageNet dataset, torchvision does not provide an api, you can use huggingface api, but because of internet instability, we choose to download manually and load the raw data from [this repository](https://github.com/pranavphoenix/TinyImageNetLoader).
@@ -37,7 +37,7 @@ If you want to use your own pretrained models:
 1. First run these to save the model files:
 
    ```bash
-   python hebb.py
+   python main.py
    python softhebb.py
    ```
 
