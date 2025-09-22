@@ -1,4 +1,4 @@
-name: SHPeRe
+name: SPHeRe
 channels:
   - pytorch
   - nvidia
