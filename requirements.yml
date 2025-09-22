@@ -1,4 +1,4 @@
-name: HELM
+name: SHPeRe
 channels:
   - pytorch
   - nvidia
